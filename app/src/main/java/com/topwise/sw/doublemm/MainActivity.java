@@ -1,6 +1,7 @@
 package com.topwise.sw.doublemm;
 
 import android.app.Application;
+import android.app.Instrumentation;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -14,7 +15,6 @@ import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.text.TextUtils;
-import android.util.AndroidRuntimeException;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -31,12 +31,11 @@ import dalvik.system.PathClassLoader;
 public class MainActivity extends AppCompatActivity {
     private final static String TAG_LOG = MainActivity.class.getName();
     Context mmContext = null;
-    private static final String MAIN_DIR = "/sdcard/tencentmm";
+    private static final String MAIN_DIR = "/sdcard/Android/data/com.topwise.sw.doublemm/tencentmm";
     private static final String APP_DIR = MAIN_DIR + "/" + "app";
     private static final String APK_PATH = APP_DIR + "/com.tencent.mm-1/base.apk";
     private static final String APK_LIB_PATH = APP_DIR + "/com.tencent.mm-1/lib";
     private static final String DEX_PATH = MAIN_DIR + "/dalvik-cache/arm/data@app@com.tencent.mm-1@base.apk@classes.dex";
-    private static final String
 
 
 
@@ -71,6 +70,16 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    ClassLoader mClassLoader;
+    PathClassLoader mPathClassLoader;
+    DexClassLoader mDexClassLoader;
+
+    public void startMM() {
+        mClassLoader = ClassLoader.getSystemClassLoader();
+        mPathClassLoader =
+
+    }
+
     Handler handler = new Handler(){
         @Override
         public void handleMessage(Message msg) {
@@ -85,20 +94,35 @@ public class MainActivity extends AppCompatActivity {
                     } catch (PackageManager.NameNotFoundException e) {
                         e.printStackTrace();
                     }
+                    ClassLoader mClassLoader = ClassLoader.getSystemClassLoader();
+
+                    PathClassLoader mPa
+
 
                     DexClassLoader mmDexClassLoader = new DexClassLoader(APK_PATH, DEX_PATH, APK_LIB_PATH, mmContext.getClassLoader());
-                    PathClassLoader mmPathClassLoader = new PathClassLoader(APK_PATH, mmDexClassLoader);
+                    //PathClassLoader mmPathClassLoader = new PathClassLoader(APK_PATH, mmDexClassLoader);
+                    PathClassLoader mmPathClassLoader = new PathClassLoader(mmInfo.activityInfo.applicationInfo.sourceDir, mmContext.getClassLoader());
 
                     try {
-                        mmPathClassLoader.loadClass("com.tencent.mm.ui.LauncherUI");
+                        Class<?> cClass = mmPathClassLoader.loadClass("com.tencent.mm.ui.LauncherUI");
                         Class<?> aClass = mmPathClassLoader.loadClass("com.tencent.mm.app.MMApplication");
                         Application application = (Application) aClass.newInstance();
                         ComponentName name = new ComponentName(mmInfo.activityInfo.applicationInfo.packageName, mmInfo.activityInfo.name);
-                        Intent intent = Intent.makeMainActivity(name);
+
+                        ComponentName name1 = new ComponentName("com.tencent.mm", "com.tencent.mm.ui.LauncherUI");
+
+                        Class<?> dexClass = mmDexClassLoader.loadClass("com.tencent.mm.app.MMApplication");
+                        //Application dexApplication = (Application) dexClass.newInstance();
+                        Application dexApplication = Instrumentation.newApplication(aClass, (Context) cClass.newInstance());
+                        Instrumentation instrumentation = new Instrumentation();
+
+
+                        //Application dexApplication = instrumentation.newApplication(mmPathClassLoader, "com.tencent.mm.ui.LauncherUI", mmContext);
+
+                        Intent intent = Intent.makeMainActivity(name1);
                         //startActivity(intent);
-                        application.startActivity(intent);
-
-
+                        dexApplication.startActivity(intent);
+                        //application.startActivity(intent);
                     } catch (ClassNotFoundException e) {
                         e.printStackTrace();
                     } catch (InstantiationException e) {
